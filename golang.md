@@ -72,7 +72,7 @@ https://qiita.com/hennin/items/7ee58dd7d7c013a23be7
         
 定義
 ```go
-()	丸括弧(まる – )　round brackets
+()	丸括弧(まる – )　round brackets,parenthesis
 []	角括弧(かく – )　square bracket
 {}　波括弧(なみ – )　curly bracket
 <>	山括弧(やま – )　angle bracket
@@ -827,6 +827,7 @@ func main() {
 [mokuji](#mokuji)
 # *ポインタ*
 ポインタとは、変数が格納されているメモリのアドレスです。C言語と同様に、オブジェクトのポインタを参照するには & を、ポインタの中身を参照するには * を用います。
+値渡しと参照渡しに注意
 
 ```go
 var a1 int		// int型変数a1を定義
@@ -853,13 +854,109 @@ func fn(b1 int, b2 *int) {
 }
 ```
 
+```go
+package main
+
+import "fmt"
+
+type Vertex struct {
+	//先頭大文字＞＞public
+	//先頭小文字＞＞private
+	X, Y int
+	S    string
+}
+
+func changeVertex(v Vertex){
+	v.X = 1000
+}
+
+func changeVertex2(v *Vertex){
+	v.X = 1000
+}
+
+func main(){
+	v := Vertex{1, 2, "test"}
+	changeVertex(v)
+	fmt.Println(v)
+
+	v2 := &Vertex{1, 2, "test"}
+	changeVertex2(v2)
+	fmt.Println(*v2)
+}
+
+
+```
+
+
 [mokuji](#mokuji)
 # *new,make*
+
+領域確保(new)
+new() を用いて領域を動的に確保し、その領域へのポインタを得ることができます。確保した領域は参照されなくなった後にでガベージコレクションにより自動的に開放されます。
+
+```go
+type Book struct {
+    title string
+}
+
+func main() {
+    bookList := []*Book{}
+
+    for i := 0; i < 10; i++ {
+        book := new(Book)
+        book.title = fmt.Sprintf("Title#%d", i)
+        bookList = append(bookLlist, book)
+    }
+    for _, book := range bookList {
+        fmt.Println(book.title)
+    }
+}
+```
 
 [mokuji](#mokuji)
 # *struct*
 Go言語では、クラス(class)の代わりに 構造体(struct) を使用します。構造体にはメンバ変数のみを定義し、クラスメソッドに相当する関数は関数名の前に (thisに相当する変数 *構造体名) をつけて定義します。
+```go
+package main
 
+import "fmt"
+
+type Vertex struct {
+	//先頭大文字＞＞public
+	//先頭小文字＞＞private
+	X, Y int
+	S    string
+}
+
+func main() {
+	v := Vertex{X: 1, Y: 2}
+	fmt.Println(v)        //{1 2}
+	fmt.Println(v.X, v.Y) //1 2
+
+	v.X = 100
+	fmt.Println(v.X, v.Y) //100 2
+
+	v2 := Vertex{X: 1}
+	fmt.Println(v2) //{1 0 }
+
+	v3 := Vertex{1, 2, "test"} //{1 2 test}
+	fmt.Println(v3)
+
+	v4 := Vertex{}
+	var v5 = Vertex{}
+
+	fmt.Println(v4) //{0 0 }
+	fmt.Println(v5) //{0 0 }
+
+	//領域確保（new）
+	v6 := new(Vertex)
+	v7 := &Vertex{}	//推奨の書き方
+
+	fmt.Printf("%T %v\n", v6, v6) //&{0 0 }
+	fmt.Printf("%T %v\n", v7, v7) //&{0 0 }
+
+}
+```
 
 
 [mokuji](#mokuji)
@@ -867,9 +964,49 @@ Go言語では、クラス(class)の代わりに 構造体(struct) を使用し�
 
 [mokuji](#mokuji)
 # *メソッドとポインタレシーバーと値レシーバー*
+メソッド実装＞＞クラスみたいな？
+```go
+func (レシーバ　型) 関数名(引数) 戻り値の型 {
+    処理コード
+}
+```
+
+
+```go
+package main
+
+import "fmt"
+
+type Vertex struct {
+	X, Y int
+}
+
+func (v Vertex) Area() int {
+	return v.X * v.Y
+}
+
+func (v *Vertex) Scale(i int) {
+	v.X = v.X * i
+	v.Y = v.Y * i
+}
+
+func Area(v Vertex) int {
+	return v.X * v.Y
+}
+
+func main() {
+	v := Vertex{3, 4}
+	// fmt.Println(Area(v))
+	v.Scale(10)
+	fmt.Println(v.Area())
+}
+```
+
 
 [mokuji](#mokuji)
 # *コンストラクタ*
+（レシーバ　型）.New() 戻り値の型　＞＞デザインパターン
+
 
 [mokuji](#mokuji)
 # *Embedded*
