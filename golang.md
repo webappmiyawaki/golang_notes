@@ -304,7 +304,7 @@ i, _ := strconv.Atoi(s)
 fmt.Printf("%T %v\n", i, i)
 
 //int型からstring型へ
-i, _ := strconv.Atoi(s)//strconvは2つ戻り値があるが「_」で受け取っている。（破棄されるということ）＞＞goは変数は全部利用しないといけないので破棄する必要がある
+i, _ := strconv.Itoa(s)//strconvは2つ戻り値があるが「_」で受け取っている。（破棄されるということ）＞＞goは変数は全部利用しないといけないので破棄する必要がある
 fmt.Println(i)
 fmt.Printf("i = $T\n", i)
 
