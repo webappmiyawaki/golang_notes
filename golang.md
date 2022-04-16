@@ -41,8 +41,30 @@ https://qiita.com/hennin/items/7ee58dd7d7c013a23be7
 [Stringer](#Stringer)
 [カスタムエラー](#カスタムエラー)
 
+[goroutineとsync.WaitGroup](#goroutineとsync.WaitGroup)
+[channel](#channel)
+[Buffered-Channels](#Buffered-Channels)
+[channelのrangeとclose](#channelのrangeとclose)
+[producerとconsumer](#producerとconsumer)
+[fan-out-fan-in](#fan-out-fan-in)
+[channelとselect](#channelとselect)
+[Default-Selection-と-for-break](#Default-Selection-と-for-break)
+[sync.Mutex](#sync.Mutex)
 
 
+[package](#package)
+[PublicとPrivate](#PublicとPrivate)
+[testing](#testing)
+[gofmt](#gofmt)
+[サードパーティーのpackageのインストール](#サードパーティーのpackageのインストール)
+[godoc](#godoc)
+
+[time](#time)
+[regex](#regex)
+[Sort](#Sort)
+[iota](#iota)
+[context](#context)
+[ioutil](#ioutil)
 
 
 
@@ -1010,18 +1032,828 @@ func main() {
 
 [mokuji](#mokuji)
 # *Embedded*
+(継承チック)
+```go
+package main
+
+import "fmt"
+
+//ベースstruct
+type Vertex struct {
+	x, y int
+}
+
+func (v Vertex) Area() int {
+	return v.x * v.y
+}
+
+func (v *Vertex) Scale(i int) {
+	v.x = v.x * i
+	v.y = v.y * i
+}
+
+//ベースに追加
+type Vertex3D struct {
+	Vertex
+	z int
+}
+
+func (v Vertex3D) Area3D() int {
+	return v.x * v.y * v.z
+}
+
+func (v *Vertex3D) Scale3D(i int) {
+	v.x = v.x * i
+	v.y = v.y * i
+	v.z = v.z * i
+}
+
+func New(x, y, z int) *Vertex3D {
+	return &Vertex3D{Vertex{x, y}, z}
+}
+
+func main() {
+	v := New(3, 4, 5)
+	v.Scale3D(10)
+	//fmt.Println(v.Area())
+	fmt.Println(v.Area3D())
+}
+```
+
 
 [mokuji](#mokuji)
 # *non-structのメソッド*
 
+```go
+package main
+
+import "fmt"
+
+type MyInt int
+
+func (i MyInt) Double() int {
+	fmt.Printf("%T %v\n", i, i)
+	fmt.Printf("%T %v\n", 1, 1)
+	return int(i * 2)
+}
+
+func main() {
+	myInt := MyInt(10)
+	fmt.Println(myInt.Double())
+}
+
+```
+
+
+
 [mokuji](#mokuji)
 # *インターフェースとダックタイピング*
+インタフェース(interface) はポリモーフィズムを実装するための機能です。下記の例では構造体 Person も、構造体 Book も ToString() というメソッドと PrintOut() というメソッドを実装しています。
+
+```go
+package main
+
+import "fmt"
+
+type Human interface {
+	Say() string
+}
+
+type Person struct {
+	Name string
+}
+
+type Dog struct {
+	Name string
+}
+
+func (p *Person) Say() string {
+	p.Name = "Mr." + p.Name
+	fmt.Println(p.Name)
+	return p.Name
+}
+
+func DriveCar(human Human) {
+	if human.Say() == "Mr.Mike" {
+		fmt.Println("Run")
+	} else {
+		fmt.Println("Get out")
+	}
+}
+
+func main() {
+	var mike Human = &Person{"Mike"}
+	var x Human = &Person{"X"}
+	DriveCar(mike)
+	DriveCar(x)
+	// var dog Dog = Dog{"dog"}
+	// DriveCar(dog)
+}
+```
+
 
 [mokuji](#mokuji)
 # *タイプアサーションとswitch type文*
+関数の無いインタフェース interface {} は、any 型のように使用することができます。下記の関数はどんな型の引数でも受け取ることができます。
+タイプアサーション＞＞型を変換する作業
+
+```go
+package main
+
+import "fmt"
+
+func do(i interface{}) {
+	/*
+		ii := i.(int)
+		// i = ii * 2
+		ii *= 2
+		fmt.Println(ii)
+		ss := i.(string)
+		fmt.Println(ss + "!")
+	*/
+	switch v := i.(type) {
+	case int:
+		fmt.Println(v * 2)
+	case string:
+		fmt.Println(v + "!")
+	default:
+		fmt.Printf("I don't know %T\n", v)
+	}
+}
+
+func main() {
+	do(10)
+	do("Mike")
+	do(true)
+
+	var i int = 10
+	ii := float64(10)
+	fmt.Println(i, ii)
+}
+
+```
 
 [mokuji](#mokuji)
 # *Stringer*
+stringer とは定数を定数名の文字列に変換する関数を生成するコマンド
+javaでいうToString
+
+```go
+package main
+
+import "fmt"
+
+type Person struct {
+	Name string
+	Age  int
+}
+
+func (p Person) String() string {
+	return fmt.Sprintf("My name is %v.", p.Name)
+}
+
+func main() {
+	mike := Person{"Mike", 22}
+	fmt.Println(mike)
+}
+```
+
 
 [mokuji](#mokuji)
 # *カスタムエラー*
+
+```go
+package main
+
+import (
+	"fmt"
+)
+
+type UserNotFound struct {
+	Username string
+}
+
+//*(ポインタ)つける
+func (e *UserNotFound) Error() string {
+	return fmt.Sprintf("User not found: %v", e.Username)
+}
+
+func myFunc() error {
+	// Something wrong
+	ok := false
+	if ok {
+		return nil
+	}
+	//&(アンパサンド)つける。エラー同士の比較のため
+	return &UserNotFound{Username: "mike"}
+}
+
+func main() {
+	if err := myFunc(); err != nil {
+		fmt.Println(err)
+	}
+}
+```
+
+
+# *goroutineとsync.WaitGroup*
+所謂スレッド
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func goroutine(s string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for i := 0; i < 5; i++ {
+		//time.Sleep(100 * time.Millisecond)
+		fmt.Println(s)
+	}
+}
+
+func normal(s string) {
+	for i := 0; i < 5; i++ {
+		//time.Sleep(100 * time.Millisecond)
+		fmt.Println(s)
+	}
+}
+
+func main() {
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go goroutine("world", &wg)
+	normal("hello")
+	// time.Sleep(2000 * time.Millisecond)
+	wg.Wait()
+}
+```
+
+# *channel*
+スレッド
+
+```go
+package main
+
+import "fmt"
+
+func goroutine1(s []int, c chan int) {
+	sum := 0
+	
+	for _, v := range s {
+		sum += v
+	}
+
+	c <- sum
+}
+
+func main() {
+	s := []int{1, 2, 3, 4, 5}
+
+	//チャネル
+	c := make(chan int) // 15, 15
+	go goroutine1(s, c)
+	go goroutine1(s, c)
+	x := <-c
+	fmt.Println(x)
+	y := <-c
+	fmt.Println(y)
+}
+
+```
+
+
+# *Buffered Channels*
+何本スレ立てるか
+サイキックバリア
+
+```go
+package main
+
+import "fmt"
+
+func main() {
+	ch := make(chan int, 2)
+	ch <- 100
+	fmt.Println(len(ch))
+	ch <- 200
+	fmt.Println(len(ch))
+	
+	//チャネルクローズは必須
+	close(ch)
+
+	for c := range ch {
+		fmt.Println(c)
+	}
+
+}
+
+```
+
+
+# *channelのrangeとclose*
+関数ごとにチャネルに流す
+
+```go
+package main
+
+import "fmt"
+
+func goroutine1(s []int, c chan int) {
+	sum := 0
+	for _, v := range s {
+		sum += v
+		c <- sum
+	}
+
+	//close
+	close(c)
+}
+
+func main() {
+	s := []int{1, 2, 3, 4, 5}
+	c := make(chan int, len(s))
+	go goroutine1(s, c)
+	for i := range c {
+		fmt.Println(i)
+	}
+}
+
+```
+
+
+# *producerとconsumer*
+複数のproducerがchanに処理を集めてchanを通してconsumerへ
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+func producer(ch chan int, i int) {
+	// Something
+	ch <- i * 2
+}
+
+func consumer(ch chan int, wg *sync.WaitGroup) {
+	for i := range ch {
+		//インナーファンクション
+		func() {
+			defer wg.Done()
+			fmt.Println("process", i*1000)
+		}()
+	}
+
+	//呼び出し元でcloseしてないと呼ばれない
+	//チャネルの終了を待ち続ける
+	fmt.Println("###################")
+}
+
+func main() {
+	var wg sync.WaitGroup
+	ch := make(chan int)
+
+	// Producer
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go producer(ch, i)
+	}
+
+	// Consumer
+	go consumer(ch, &wg)
+	wg.Wait()
+	close(ch)
+	time.Sleep(2 * time.Second)
+	fmt.Println("Done")
+}
+```
+
+
+# *fan-out fan-in*
+gorutineのチェーン
+
+```go
+package main
+
+import "fmt"
+
+func producer(first chan int) {
+	defer close(first)
+	for i := 0; i < 10; i++ {
+		first <- i
+	}
+}
+
+//チャネルの矢印は省略できるが見やすいように省略しない
+func multi2(first <-chan int, second chan<- int) {
+	defer close(second)
+	for i := range first {
+		second <- i * 2
+	}
+}
+
+func multi4(second chan int, third chan int) {
+	defer close(third)
+	for i := range second {
+		third <- i * 4
+	}
+}
+
+func main() {
+	first := make(chan int)
+	second := make(chan int)
+	third := make(chan int)
+
+	go producer(first)
+	go multi2(first, second)
+	go multi4(second, third)
+	for result := range third {
+		fmt.Println(result)
+	}
+}
+```
+
+
+# *channelとselect*
+チャネル受信の選択
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func goroutine1(ch chan string) {
+	for {
+		ch <- "packet from 1"
+		time.Sleep(3 * time.Second)
+	}
+}
+
+func goroutine2(ch chan int) {
+	for {
+		ch <- 100
+		time.Sleep(1 * time.Second)
+	}
+}
+
+func main() {
+	c1 := make(chan string)
+	c2 := make(chan int)
+	go goroutine1(c1)
+	go goroutine2(c2)
+
+	for {
+		select {
+		case msg1 := <-c1:
+			fmt.Println(msg1)
+		case msg2 := <-c2:
+			fmt.Println(msg2)
+		}
+	}
+}
+```
+
+# *Default Selection と for break*
+package main
+
+```go
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	tick := time.Tick(100 * time.Millisecond)
+	boom := time.After(500 * time.Millisecond)
+OuterLoop:
+	for {
+		select {
+		case <-tick:
+			fmt.Println("tick.")
+		case <-boom:
+			fmt.Println("BOOM!")
+			break OuterLoop
+			// return
+		default:
+			fmt.Println("    .")
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	fmt.Println("##############")
+}
+```
+
+
+# *sync.Mutex*
+シンクロミューテックス
+goroutineによる並行処理で共有リソースにアクセスしなければならないとき、排他制御が必要になります。ここでは、sync.Mutexを利用した排他制御の実装方法を確認します。(mutexは、mutual exclusionの略です。)
+
+```go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+type Counter struct {
+	v   map[string]int
+	mux sync.Mutex
+}
+
+func (c *Counter) Inc(key string) {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	c.v[key]++
+}
+
+func (c *Counter) Value(key string) int {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	return c.v[key]
+}
+
+func main() {
+	// c := make(map[string]int)
+	c := Counter{v: make(map[string]int)}
+	go func() {
+		for i := 0; i < 10; i++ {
+			// c["key"] += 1
+			c.Inc("Key")
+		}
+	}()
+	go func() {
+		for i := 0; i < 10; i++ {
+			// c["key"] += 1
+			c.Inc("Key")
+		}
+	}()
+	time.Sleep(1 * time.Second)
+	fmt.Println(c, c.Value("Key"))
+}
+```
+
+```go
+package main
+
+import "fmt"
+
+func goroutine(s []string, c chan string) {
+	sum := ""
+	for _, v := range s {
+		sum += v
+		c <- sum
+	}
+	close(c)
+}
+
+func main() {
+	words := []string{"test1!", "test2!", "test3!", "test4!"}
+	c := make(chan string)
+	go goroutine(words, c)
+	for w := range c {
+		fmt.Println(w)
+	}
+}
+```
+
+# package
+
+
+# PublicとPrivate
+関数名の先頭が大文字か小文字か
+
+
+# testing
+設定＞＞testingに✓
+
+テストしたい関数
+```go
+package mylib
+
+func Average(s []int) int {
+	total := 0
+	for _, i := range s {
+		total += i
+	}
+	return int(total / len(s))
+}
+
+```
+
+テスト
+```go
+package mylib
+
+import "testing"
+
+func TestAverage(t *testing.T) {
+	if Debug{
+		t.Skip("Skip Reason")
+	}
+
+	v := Average([]int{1, 2, 3, 4, 5})
+	if v != 3 {
+		t.Error("Expected 3, got", v)
+	}
+}
+```
+
+# gofmt
+フォーマット
+
+# サードパーティーのpackageのインストール
+talib
+
+# godoc
+
+# time
+時間用ライブラリ
+
+```go
+/* https://golang.org/pkg/time/
+
+const (
+        ANSIC       = "Mon Jan _2 15:04:05 2006"
+        UnixDate    = "Mon Jan _2 15:04:05 MST 2006"
+        RubyDate    = "Mon Jan 02 15:04:05 -0700 2006"
+        RFC822      = "02 Jan 06 15:04 MST"
+        RFC822Z     = "02 Jan 06 15:04 -0700" // RFC822 with numeric zone
+        RFC850      = "Monday, 02-Jan-06 15:04:05 MST"
+        RFC1123     = "Mon, 02 Jan 2006 15:04:05 MST"
+        RFC1123Z    = "Mon, 02 Jan 2006 15:04:05 -0700" // RFC1123 with numeric zone
+        RFC3339     = "2006-01-02T15:04:05Z07:00"
+        RFC3339Nano = "2006-01-02T15:04:05.999999999Z07:00"
+        Kitchen     = "3:04PM"
+        // Handy time stamps.
+        Stamp      = "Jan _2 15:04:05"
+        StampMilli = "Jan _2 15:04:05.000"
+        StampMicro = "Jan _2 15:04:05.000000"
+        StampNano  = "Jan _2 15:04:05.000000000"
+)
+*/
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	t := time.Now()
+	fmt.Println(t)
+	fmt.Println(t.Format(time.RFC3339))
+	fmt.Println(t.Year(), t.Month(), t.Day(),
+		t.Hour(), t.Minute(), t.Second())
+}
+
+```
+
+# regex
+正規表現
+
+```go
+package main
+
+import (
+	"fmt"
+	"regexp"
+)
+
+func main() {
+	match, _ := regexp.MatchString("a([a-z]+)e", "apple")
+	fmt.Println(match)
+
+	r := regexp.MustCompile("a([a-z]+)e")
+	ms := r.MatchString("apple")
+	fmt.Println(ms)
+
+	r2 := regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+	fs := r2.FindString("/view/test")
+	fmt.Println(fs)
+	fss := r2.FindStringSubmatch("/view/test")
+	fmt.Println(fss, fss[0], fss[1], fss[2])
+	fss = r2.FindStringSubmatch("/edit/test")
+	fmt.Println(fss, fss[0], fss[1], fss[2])
+	fss = r2.FindStringSubmatch("/save/test")
+	fmt.Println(fss, fss[0], fss[1], fss[2])
+}
+```
+
+# Sort
+
+```go
+package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+func main() {
+	i := []int{5, 3, 2, 8, 7}
+	s := []string{"d", "a", "f"}
+	p := []struct {
+		Name string
+		Age  int
+	}{
+		{"Nancy", 20},
+		{"Vera", 40},
+		{"Mike", 30},
+		{"Bob", 50},
+	}
+	fmt.Println(i, s, p)
+	sort.Ints(i)
+	sort.Strings(s)
+	sort.Slice(p, func(i, j int) bool { return p[i].Name < p[j].Name })
+	sort.Slice(p, func(i, j int) bool { return p[i].Age < p[j].Age })
+	fmt.Println(i, s, p)
+}
+```
+
+# iota
+連番を振る
+
+
+```go
+package main
+
+import "fmt"
+
+const (
+	c1 = iota
+	c2
+	c3
+)
+
+const (
+	_      = iota
+
+	//10桁シフト
+	KB int = 1 << (10 * iota)
+	MB
+	GB
+)
+
+func main() {
+	fmt.Println(c1, c2, c3)
+	fmt.Println(KB, MB, GB)
+}
+
+```
+
+# context
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+func longProcess(ctx context.Context, ch chan string) {
+	fmt.Println("run")
+	time.Sleep(2 * time.Second)
+	fmt.Println("finish")
+	ch <- "result"
+}
+
+func main() {
+	ch := make(chan string)
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, 1 * time.Second)
+	//defer cancel()
+	//ctx := context.TODO()
+	go longProcess(ctx, ch)
+	cancel()
+
+CTXLOOP:
+	for {
+		select {
+		case <-ctx.Done():
+            fmt.Println("%%%%%%%%%%%%%%%%%%%%%%%%")
+			fmt.Println(ctx.Err())
+			break CTXLOOP
+		case <-ch:
+			fmt.Println("success")
+			break CTXLOOP
+		}
+	}
+	fmt.Println("################")
+}
+
+```
+# ioutil
