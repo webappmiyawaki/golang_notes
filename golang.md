@@ -1,6 +1,9 @@
 マークダウンのページ内リンク
 https://qiita.com/hennin/items/7ee58dd7d7c013a23be7
 
+Writing Web Applications
+https://go.dev/doc/articles/wiki/
+
 # mokuji
 
 [go](#go)
@@ -67,6 +70,11 @@ https://qiita.com/hennin/items/7ee58dd7d7c013a23be7
 [ioutil](#ioutil)
 
 
+[webapp1](#webapp1)Web Applications 1 - ioutil
+[webapp2](#webapp2)Web Applications 2 - http.ListenAndServer
+[webapp3](#webapp3)Web Applications 3 - templateとhttp.ResponseWriterとhttp.Request
+[webapp4](#webapp4)Web Applications 4 - http.Redirect
+[webapp5](#webapp5)Web Applications 5 - templateのキャッシュとハンドラー
 
 [mokuji](#mokuji)
 # *go*
@@ -1857,3 +1865,192 @@ CTXLOOP:
 
 ```
 # ioutil
+パケット読み込んで、パケットに書き込む等に使える
+
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+)
+
+func main() {
+	//content, err := ioutil.ReadFile("main.go")
+	//if err != nil{
+	//	log.Fatalln(err)
+	//}
+	//fmt.Println(string(content))
+	//
+	//if err := ioutil.WriteFile("ioutil_temp.go", content, 0666); err != nil{
+	//	log.Fatalln(err)
+	//}
+
+	r := bytes.NewBuffer([]byte("abc"))
+	content, _ := ioutil.ReadAll(r)
+	fmt.Println(string(content))
+}
+```
+
+# http
+```go
+package main
+
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
+)
+
+func main() {
+	//resp, _ := http.Get("http://example.com")
+	//defer resp.Body.Close()
+	//body, _ := ioutil.ReadAll(resp.Body)
+	//fmt.Println(string(body))
+
+	//URLが正しいかチェック
+	base, _ := url.Parse("https://example.com/")
+	
+	//
+	reference, _ := url.Parse("/test?a=1&b=2")
+	endpoint := base.ResolveReference(reference).String()
+	fmt.Println(endpoint)
+	// req, _ := http.NewRequest("GET", endpoint, nil)
+	req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer([]byte("password")))
+	
+	
+	req.Header.Add("If-None-Match", `W/"wyzzy"`)
+	q := req.URL.Query()
+	q.Add("c", "3&%")
+	fmt.Println(q)
+	fmt.Println(q.Encode())
+	req.URL.RawQuery = q.Encode()
+
+	var client *http.Client = &http.Client{}
+	resp, _ := client.Do(req)
+	body, _ := ioutil.ReadAll(resp.Body)
+	fmt.Println(string(body))
+
+}
+
+```
+
+
+# json.UnmarshalとMarshalとエンコード
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+)
+
+type T struct{}
+
+//structの中にstruct入れる場合はポインタつける。オミットエンプティで消せる
+type Person struct {
+	Name      string   `json:"name,omitempty"`
+	Age       int      `json:"age,omitempty"`
+	Nicknames []string `json:"nicknames,omitempty"`
+	T		  *T	   `json:"T,omitempty"`
+}
+
+func (p *Person) UnmarshalJSON(b []byte) error {
+	type Person2 struct {
+		Name string
+	}
+	var p2 Person2
+	err := json.Unmarshal(b, &p2)
+	if err != nil {
+		fmt.Println(err)
+	}
+	p.Name = p2.Name
+	return err
+}
+
+//データの加工
+func (p Person) MarshalJSON() ([]byte, error) {
+	v, err := json.Marshal(&struct {
+		Name string
+	}{
+		Name: "Mr " + p.Name,
+	})
+	return v, err
+}
+
+func main() {
+	//データ受け取り
+	b := []byte(`{"name":"mike","age":20,"nicknames":["a","b","c"]}`)
+	var p Person
+
+	//structへ
+	if err := json.Unmarshal(b, &p); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(p.Name, p.Age, p.Nicknames)
+
+	//外へ送り返す
+	v, _ := json.Marshal(p)
+	fmt.Println(string(v))
+}
+
+```
+# hmacでAPI認証
+テンプレ
+
+```go
+package main
+
+import (
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+)
+
+var DB = map[string]string{
+	"User1Key": "User1Secret",
+	"User2Key": "User2Secret",
+}
+
+func Server(apiKey, sign string, data []byte) {
+	apiSecret := DB[apiKey]
+	h := hmac.New(sha256.New, []byte(apiSecret))
+	h.Write(data)
+	expectedHMAC := hex.EncodeToString(h.Sum(nil))
+	fmt.Println(sign == expectedHMAC)
+}
+
+func main() {
+	const apiKey = "User2Key"
+	const apiSecret = "User2Secret"
+
+	data := []byte("data")
+	h := hmac.New(sha256.New, []byte(apiSecret))
+	h.Write(data)
+	sign := hex.EncodeToString(h.Sum(nil))
+
+	fmt.Println(sign)
+
+	Server(apiKey, sign, data)
+}
+```
+
+# webapp1
+Web Applications 1 - ioutil
+
+# webapp2
+Web Applications 2 - http.ListenAndServer
+
+# webapp3
+Web Applications 3 - templateとhttp.ResponseWriterとhttp.Request
+
+# webapp4
+Web Applications 4 - http.Redirect
+
+# webapp5
+Web Applications 5 - templateのキャッシュとハンドラー
